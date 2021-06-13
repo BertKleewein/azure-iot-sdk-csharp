@@ -67,7 +67,7 @@ namespace Microsoft.Azure.Devices.Client.Samples
         }
 
         // The callback to handle property update requests.
-        private async Task HandlePropertyUpdatesAsync(ClientPropertyCollection writableProperties, object userContext)
+        private async Task HandlePropertyUpdatesAsync(ClientProperties writableProperties, object userContext)
         {
             foreach (KeyValuePair<string, object> writableProperty in writableProperties)
             {
@@ -79,15 +79,21 @@ namespace Microsoft.Azure.Devices.Client.Samples
                         _logger.LogDebug($"Property: Received - [ \"{targetTemperatureProperty}\": {targetTemperatureRequested}°C ].");
 
                         _temperature = targetTemperatureRequested;
+                        /*
+                        feedback: this is an odd place to serialize.  
+                        Why do we serialize here instead of doing this inside UpdateClientPropertiesAsync? 
+                        Do we ask the customer to serialize anything else?  
+                        */
+
                         IWritablePropertyResponse writableResponse = _deviceClient
                             .PayloadConvention
                             .PayloadSerializer
                             .CreateWritablePropertyResponse(_temperature, CommonClientResponseCodes.OK, writableProperties.Version, "Successfully updated target temperature");
 
-                        var reportedProperty = new ClientPropertyCollection();
-                        reportedProperty.AddRootProperty(targetTemperatureProperty, writableResponse);
+                        var reportedProperties = new ClientProperties();
+                        reportedProperties.AddProperty(targetTemperatureProperty, writableResponse);
 
-                        ClientPropertiesUpdateResponse updateResponse = await _deviceClient.UpdateClientPropertiesAsync(reportedProperty);
+                        ClientPropertiesUpdateResponse updateResponse = await _deviceClient.UpdateClientPropertiesAsync(reportedProperties);
 
                         _logger.LogDebug($"Property: Update - {reportedProperty.GetSerializedString()} is {nameof(CommonClientResponseCodes.OK)} " +
                             $"with a version of {updateResponse.Version}.");
@@ -188,8 +194,8 @@ namespace Microsoft.Azure.Devices.Client.Samples
         private async Task UpdateMaxTemperatureSinceLastRebootPropertyAsync()
         {
             const string propertyName = "maxTempSinceLastReboot";
-            var reportedProperties = new ClientPropertyCollection();
-            reportedProperties.AddRootProperty(propertyName, _maxTemp);
+            var reportedProperties = new ClientProperties();
+            reportedProperties.AddProperty(propertyName, _maxTemp);
 
             ClientPropertiesUpdateResponse updateResponse = await _deviceClient.UpdateClientPropertiesAsync(reportedProperties);
 

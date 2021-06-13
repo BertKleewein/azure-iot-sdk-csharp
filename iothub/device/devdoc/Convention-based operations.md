@@ -133,24 +133,40 @@ public Task SubscribeToWritablePropertiesEventAsync(Func<ClientPropertyCollectio
 #### All related types
 
 ```csharp
-public class ClientProperties : ClientPropertyCollection {
+public class ClientProperties {
     public ClientProperties();
-    public ClientPropertyCollection Writable { get; private set; }
+    public long Version { get; protected set; }
+    public ClientPropertyCollection Properties { get; private set; }
+    public ClientComponentCollection Components { get; private set; }
 }
 
-public class ClientPropertyCollection : PayloadCollection {
+public class ClientPropertyCollection {
     public ClientPropertyCollection();
     public long Version { get; protected set; }
     public void Add(IDictionary<string, object> properties);
-    public void AddComponentProperties(string componentName, IDictionary<string, object> properties);
-    public void AddComponentProperty(string componentName, string propertyName, object propertyValue);
     public void AddOrUpdate(IDictionary<string, object> properties);
-    public void AddOrUpdateComponentProperties(string componentName, IDictionary<string, object> properties);
-    public void AddOrUpdateComponentProperty(string componentName, string propertyName, object propertyValue);
-    public void AddOrUpdateRootProperty(string propertyName, object propertyValue);
-    public void AddRootProperty(string propertyName, object propertyValue);
-    public bool Contains(string componentName, string propertyName);
-    public virtual bool TryGetValue<T>(string componentName, string propertyName, out T propertyValue);
+    public bool Contains(string propertyName);
+    public virtual bool TryGetValue<T>(string propertyName, out T propertyValue);
+}
+
+public class ClientComponentCollection {
+    public ClientCompoentCollection()
+
+    public void Add(IDictionary<string, ClientComponent> components);
+    public void AddOrUpdate(IDictionary<string, ClientComponent> components);
+    public bool Contains(string componentName);
+    public virtual bool TryGetValue(string componentName, out ClientComponent component);
+}
+
+public class ClientComponent {
+    public ClientComponent();
+    public ClientPropertyCollection Properties { get; private set; }
+}
+
+public class ClientWritableProperty {
+    public ClientWritableProperty();
+    public object value;
+    public IWritablePropertyResponse response;
 }
 
 public interface IWritablePropertyResponse {
