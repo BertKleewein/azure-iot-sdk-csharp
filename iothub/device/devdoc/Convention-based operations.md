@@ -119,7 +119,7 @@ public Task<ClientProperties> GetClientPropertiesAsync(CancellationToken cancell
 /// <param name="propertyCollection">Reported properties to push.</param>
 /// <param name="cancellationToken">A cancellation token to cancel the operation.</param>
 /// <returns>The response containing the operation request Id and updated version no.</returns>
-public Task<ClientPropertiesUpdateResponse> UpdateClientPropertiesAsync(ClientPropertyCollection propertyCollection, CancellationToken cancellationToken = default);
+public Task<ClientPropertiesUpdateResponse> UpdateClientPropertiesAsync(ClientProperties properties, CancellationToken cancellationToken = default);
 
 /// <summary>
 /// Sets the global listener for Writable properties
@@ -127,7 +127,7 @@ public Task<ClientPropertiesUpdateResponse> UpdateClientPropertiesAsync(ClientPr
 /// <param name="callback">The global call back to handle all writable property updates.</param>
 /// <param name="userContext">Generic parameter to be interpreted by the client code.</param>
 /// <param name="cancellationToken">A cancellation token to cancel the operation.</param>
-public Task SubscribeToWritablePropertiesEventAsync(Func<ClientPropertyCollection, object, Task> callback, object userContext, CancellationToken cancellationToken = default);
+public Task SubscribeToWritablePropertiesEventAsync(Func<ClientProperties, object, Task> callback, object userContext, CancellationToken cancellationToken = default);
 ```
 
 #### All related types
@@ -135,22 +135,38 @@ public Task SubscribeToWritablePropertiesEventAsync(Func<ClientPropertyCollectio
 ```csharp
 public class ClientProperties : ClientPropertyCollection {
     public ClientProperties();
-    public ClientPropertyCollection Writable { get; private set; }
+    public ClientComponentCollection Components { get; private set; }
 }
 
-public class ClientPropertyCollection : PayloadCollection {
+public class ClientPropertyCollection : IEnumerable, IEnumerable<KeyValuePair<string, object>> {
     public ClientPropertyCollection();
     public long Version { get; protected set; }
-    public void Add(IDictionary<string, object> properties);
-    public void AddComponentProperties(string componentName, IDictionary<string, object> properties);
-    public void AddComponentProperty(string componentName, string propertyName, object propertyValue);
-    public void AddOrUpdate(IDictionary<string, object> properties);
-    public void AddOrUpdateComponentProperties(string componentName, IDictionary<string, object> properties);
-    public void AddOrUpdateComponentProperty(string componentName, string propertyName, object propertyValue);
-    public void AddOrUpdateRootProperty(string propertyName, object propertyValue);
-    public void AddRootProperty(string propertyName, object propertyValue);
-    public bool Contains(string componentName, string propertyName);
-    public virtual bool TryGetValue<T>(string componentName, string propertyName, out T propertyValue);
+    public IDictionary<string, object> Collection { get; private set; }
+    public void AddProperty(string propertyName, object value);
+    public void AddProperty(IDictionary<string, object> properties);
+    public void AddOrUpdateProperty(IDictionary<string, object> properties);
+    public bool ContainsProperty(string propertyName);
+    public virtual bool TryGetPropertyValue<T>(string propertyName, out T propertyValue);
+}
+
+public class ClientComponentCollection : IEnumerable, IEnumerable<KeyValuePair<string, ClientComponent>> {
+    public ClientCompoentCollection()
+    public IDictionary<string, ClientComponent> Collection { get; private set; }
+    public void AddComponent(string componentName, ClientComponent value);
+    public void AddComponent(IDictionary<string, ClientComponent> components);
+    public void AddOrUpdateComponent(IDictionary<string, ClientComponent> components);
+    public bool ContainsComponent(string componentName);
+    public virtual bool TryGetComponentValue(string componentName, out ClientComponent component);
+}
+
+public class ClientComponent : ClientPropertyCollection {
+    public ClientComponent();
+}
+
+public class ClientWritableProperty {
+    public ClientWritableProperty();
+    public object Value;
+    public IWritablePropertyResponse Response;
 }
 
 public interface IWritablePropertyResponse {

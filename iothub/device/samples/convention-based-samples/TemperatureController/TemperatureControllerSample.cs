@@ -92,19 +92,19 @@ namespace Microsoft.Azure.Devices.Client.Samples
         }
 
         // The callback to handle property update requests.
-        private async Task HandlePropertyUpdatesAsync(ClientPropertyCollection writableProperties, object userContext)
+        private async Task HandlePropertyUpdatesAsync(ClientProperties writableProperties, object userContext)
         {
-            foreach (KeyValuePair<string, object> writableProperty in writableProperties)
+            foreach (KeyValuePair<string, object> component in writableProperties.Components)
             {
-                // The dispatcher key will be either a top-level property name or a component name.
-                switch (writableProperty.Key)
+                // The dispatcher key will be a component name.
+                switch (component.Key)
                 {
                     case Thermostat1:
                     case Thermostat2:
                         const string targetTemperatureProperty = "targetTemperature";
-                        if (writableProperties.TryGetValue(writableProperty.Key, targetTemperatureProperty, out double targetTemperatureRequested))
+                        if (component.TryGetValue(targetTemperatureProperty, out double targetTemperatureRequested))
                         {
-                            await HandleTargetTemperatureUpdateRequestAsync(writableProperty.Key, targetTemperatureRequested, writableProperties.Version, userContext);
+                            await HandleTargetTemperatureUpdateRequestAsync(component.Key, targetTemperatureRequested, writableProperties.Version, userContext);
                             break;
                         }
                         else
@@ -129,15 +129,28 @@ namespace Microsoft.Azure.Devices.Client.Samples
             _logger.LogDebug($"Property: Received - component=\"{componentName}\", [ \"{targetTemperatureProperty}\": {targetTemperature}°C ].");
 
             _temperature[componentName] = targetTemperature;
+            // Same feedback on serializing -- odd to do it here.
             IWritablePropertyResponse writableResponse = _deviceClient
                 .PayloadConvention
                 .PayloadSerializer
                 .CreateWritablePropertyResponse(_temperature[componentName], CommonClientResponseCodes.OK, version, "Successfully updated target temperature.");
 
-            var reportedProperty = new ClientPropertyCollection();
-            reportedProperty.AddComponentProperty(componentName, targetTemperatureProperty, writableResponse);
+            // My C# is rusty.  Is there a way to build these classes so you can use object initializers for this?
+            var reportedProperties = new ClientProperties()
+            var component = new ClientComponent();
+            component.add(targetTemperatureProperty, writableResponse);
+            reportedProperties.Components.AddComponent(componentName, component);
 
-            ClientPropertiesUpdateResponse updateResponse = await _deviceClient.UpdateClientPropertiesAsync(reportedProperty);
+            // In other words, instead of the 4 lines, above, could we have something like this:
+            var reportedProperties = new ClientProperties {
+                    Components = ClientComponentCollection {
+                            componentName = ClientComponent  {
+                                targetTemperature = writableResponse;
+                            }
+                        }
+                    }
+
+            ClientPropertiesUpdateResponse updateResponse = await _deviceClient.UpdateClientPropertiesAsync(reportedProperties);
 
             _logger.LogDebug($"Property: Update - component=\"{componentName}\", {reportedProperty.GetSerializedString()} is {nameof(CommonClientResponseCodes.OK)} " +
                 $"with a version of {updateResponse.Version}.");
@@ -292,8 +305,11 @@ namespace Microsoft.Azure.Devices.Client.Samples
                 { "totalStorage", 256 },
                 { "totalMemory", 1024 },
             };
-            var deviceInformation = new ClientPropertyCollection();
-            deviceInformation.AddComponentProperties(componentName, deviceInformationProperties);
+            var component = new ClientComponent();
+            component.AddProperty(deviceInformationProperties);
+
+            var deviceInformation = new ClientProperties();
+            deviceInformation.Components.AddComponent(componentName, component);
 
             ClientPropertiesUpdateResponse updateResponse = await _deviceClient.UpdateClientPropertiesAsync(deviceInformation, cancellationToken);
 
@@ -331,11 +347,11 @@ namespace Microsoft.Azure.Devices.Client.Samples
             // Retrieve the device's properties.
             ClientProperties properties = await _deviceClient.GetClientPropertiesAsync(cancellationToken);
 
-            if (!properties.TryGetValue(serialNumber, out string serialNumberReported)
+            if (!properties.Properties.TryGetValue(serialNumber, out string serialNumberReported)
                 || serialNumberReported != currentSerialNumber)
             {
-                var reportedProperties = new ClientPropertyCollection();
-                reportedProperties.AddRootProperty(serialNumber, currentSerialNumber);
+                var reportedProperties = new ClientProperties();
+                reportedProperties.Properties.AddProperty(serialNumber, currentSerialNumber);
 
                 ClientPropertiesUpdateResponse updateResponse = await _deviceClient.UpdateClientPropertiesAsync(reportedProperties, cancellationToken);
 
@@ -395,8 +411,12 @@ namespace Microsoft.Azure.Devices.Client.Samples
         {
             const string propertyName = "maxTempSinceLastReboot";
             double maxTemp = _maxTemp[componentName];
-            var reportedProperties = new ClientPropertyCollection();
-            reportedProperties.AddComponentProperty(componentName, propertyName, maxTemp);
+
+            var component = new ClientComponent();
+            component.AddProperty(propertyName, maxTemp);
+
+            var reportedProperties = new ClientProperties();
+            reportedProperties.Components.AddComponent(componentName, component);
 
             ClientPropertiesUpdateResponse updateResponse = await _deviceClient.UpdateClientPropertiesAsync(reportedProperties, cancellationToken);
 
